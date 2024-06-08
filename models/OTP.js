@@ -51,8 +51,3 @@ OTPSchema.pre("save", async function (next) {
 const OTP = mongoose.model("OTP", OTPSchema);
 
 module.exports = OTP;
-
-
-// jese mai signup mai saari details fill karunga, uske baad mai sendotp waale controller ko call karunga
-// then wo controller given email par otp bhej dega using pre, otp model mai store krne se pehle
-// then user otp daalega toh check karenge valid hai ya nhi
