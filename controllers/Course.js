@@ -147,35 +147,63 @@ exports.editCourse = async (req, res) => {
       console.log("thumbnail update")
       const thumbnail = req.files.thumbnailImage
       const thumbnailImage = await uploadImageToCloudinary(
-        thumbnail,
+        thumbnail, 
         process.env.FOLDER_NAME
       )
       course.thumbnail = thumbnailImage.secure_url
     }
+
+    console.log("Updates are: ",updates)
 
     // Update only the fields that are present in the request body
     for (const key in updates) {
       if (updates.hasOwnProperty(key)) {
         if (key === "tag" || key === "instructions") {
           course[key] = JSON.parse(updates[key])
-        } else {
+        } 
+        if(key === "category"){
+          // previous category mein se course ko htao
+          let previousCategory = course[key]
+          let newCategory = updates[key]
+          await Category.findByIdAndUpdate({_id:previousCategory},
+            {
+              $pull:{
+                courses: courseId
+              }
+            }
+          )
+
+          // new category mein course ko add karo
+          await Category.findByIdAndUpdate({_id:newCategory},
+            {
+              $push:{
+                courses: courseId
+              }
+            }
+          )
+          course[key] = updates[key]
+        }
+        else {
           course[key] = updates[key]
         }
       }
     }
+
+    // agar mai category mein kuch changes krta hoon then make sure previous category se 
+    // uss course ko htana and new category mein uss course ko daal dena
 
     await course.save()
 
     const updatedCourse = await Course.findOne({
       _id: courseId,
     })
+    .populate("category")
       .populate({
         path: "instructor",
         populate: {
           path: "additionalDetails",
         },
       })
-      .populate("category")
       .populate("ratingAndReviews")
       .populate({
         path: "courseContent",
@@ -184,6 +212,8 @@ exports.editCourse = async (req, res) => {
         },
       })
       .exec()
+
+      console.log("Updated Course:",updatedCourse)
 
     res.json({
       success: true,
@@ -451,7 +481,7 @@ exports.deleteCourse = async (req, res) => {
     }
 
     // Unenroll students from the course
-    const studentsEnrolled = course.studentsEnroled
+    const studentsEnrolled = course.studentsEnrolled
     for (const studentId of studentsEnrolled) {
       await User.findByIdAndUpdate(studentId, {
         $pull: { courses: courseId },
